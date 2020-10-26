@@ -8,8 +8,7 @@ backtracking using parallel algorithm */
 #include <string.h>
 #define BILLION 1000000000L 
 
-int best_profit, sol_num;
-int **best_board;
+int best_profit, *sol_num, **best_board;
 
 /* A utility function to print solution */
 void printSolution(int n, int **board) 
@@ -73,11 +72,11 @@ typedef struct {
     int n, p, pid;
 } GM;
 
-void solvenq(int n, int **board, int row) 
+void solvenq(int n, int **board, int row, int pid) 
 {
   // base case for when all queens have been inserted
   if (row == n) {
-    sol_num = sol_num + 1;
+    sol_num[pid] = sol_num[pid] + 1;
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
@@ -93,7 +92,7 @@ void solvenq(int n, int **board, int row)
 			// place queen on current square
 			board[row][i] = 1;
 			// recur for next row
-			solvenq(n, board, row+1);
+			solvenq(n, board, row+1, pid);
 			// backtrack and remove queen from current square
 			board[row][i] = 0;
 		}
@@ -121,7 +120,7 @@ psolvenq(void *varg) {
     // place queen on current square
     temp_board[0][i] = 1;
     // recur for next row
-    solvenq(n, temp_board, 1);
+    solvenq(n, temp_board, 1, pid);
     // backtrack and remove queen from current square
     temp_board[0][i] = 0;
 	}
@@ -138,8 +137,6 @@ main(int argc, char **argv) {
   struct timespec start, end;
   int i, j, p, n;  // i, j, :iterative index, p: # of processor, n: matrix dimension
   double time;     // time indicates execution time
-  sol_num = 0;
-  best_profit = 0;
 
   if(argc != 3) {
       printf("Usage: nqueens_parallel n p\nAborting...\n");
@@ -157,11 +154,18 @@ main(int argc, char **argv) {
       }
   }
 
+  // initialize solution number and best profit array that store each data in each processor
+  sol_num = (int *) malloc(n * sizeof(int));
+  best_profit = 0;
+  for (i = 0; i < p; i++) {
+    sol_num[i] = 0;
+  }
+
   clock_gettime(CLOCK_MONOTONIC, &start);
 
   // allocate memory for thread
   pthread_t *threads = malloc(p * sizeof(threads));
-  for(i = 0; i < p; i++) {
+  for (i = 0; i < p; i++) {
 
       // struct to pass in input (ptr to all matrix and vectors)
       GM *arg = malloc(sizeof(*arg));
@@ -180,10 +184,15 @@ main(int argc, char **argv) {
   
   time = BILLION *(end.tv_sec - start.tv_sec) +(end.tv_nsec - start.tv_nsec);
   time = time / BILLION;
+
+  int sol_total = 0;
+  for (i = 0; i < n; i++) {
+    sol_total = sol_total + sol_num[i];
+  }
   
   // prints information calculated in problem
   printf("Elapsed: %lf seconds\n\n", time);
-  printf("There are %d solutions and the solution with the highest profit is: \n\n", sol_num);
+  printf("There are %d solutions and the solution with the highest profit is: \n\n", sol_total);
   printSolution(n, best_board);
   printf("Profit: %i\n", best_profit);
   
