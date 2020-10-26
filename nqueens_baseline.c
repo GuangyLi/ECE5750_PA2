@@ -67,10 +67,11 @@ bool isSafe(int n, int board[n][n], int r, int c)
 	return true;
 } 
 
-void solvenq(int n, int board[n][n], int best_board[n][n], int r) 
+void solvenq(int n, int board[n][n], int best_board[n][n], int r, int *sol_num) 
 {
   // base case for when all queens have been inserted
   if (r == n) {
+    *sol_num = *sol_num + 1;
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
@@ -86,7 +87,7 @@ void solvenq(int n, int board[n][n], int best_board[n][n], int r)
 			// place queen on current square
 			board[r][i] = 1;
 			// recur for next row
-			solvenq(n, board, best_board, r+1);
+			solvenq(n, board, best_board, r+1, sol_num);
 			// backtrack and remove queen from current square
 			board[r][i] = 0;
 		}
@@ -103,6 +104,7 @@ int main(int argc, char **argv)
         exit(0);
     }
   n = atoi(argv[1]);
+  int sol_num = 0;
   int board[n][n];
   int best_board[n][n];
   for (i = 0; i < n; i++) {
@@ -111,7 +113,7 @@ int main(int argc, char **argv)
     }
   }
 	clock_gettime(CLOCK_MONOTONIC, &start);
-  solvenq(n, board, best_board, 0);
+  solvenq(n, board, best_board, 0, &sol_num);
   clock_gettime(CLOCK_MONOTONIC, &end);
     
   time =
@@ -119,6 +121,7 @@ int main(int argc, char **argv)
   time = time / BILLION;
     
   printf("Elapsed: %lf seconds\n\n", time);
+  printf("There are %d solutions and the solution with the highest profit is: \n\n", sol_num);
   printSolution(n, best_board);
   printf("Profit: %i\n", best_profit);
 	return 0; 
