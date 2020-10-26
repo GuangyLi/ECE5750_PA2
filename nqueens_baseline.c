@@ -10,7 +10,7 @@ backtracking */
 int best_profit;
 
 /* A utility function to print solution */
-void printSolution(int n, int board[n][n]) 
+void printSolution(int n, int **board) 
 { 
   int i,j;
 	for (i = 0; i < n; i++) { 
@@ -22,7 +22,7 @@ void printSolution(int n, int board[n][n])
 } 
 
 /* Copies src n x n matrix into dest n x n matrix */
-void copy(int n, int src[n][n], int dest[n][n])
+void copy(int n, int **src, int **dest)
 {
   int i, j;
   for (i = 0; i < n; i++) {
@@ -32,7 +32,7 @@ void copy(int n, int src[n][n], int dest[n][n])
 }
 
 /* Calculates total profit of a board using formula from PA2 handout */
-int totalProfit(int n, int board[n][n])
+int totalProfit(int n, int **board)
 {
   int i, j, prof;
   prof = 0;
@@ -46,7 +46,7 @@ int totalProfit(int n, int board[n][n])
     
 /* Returns true if the board satisfies the n queens problem if a queen 
    were to be inserted at row r and column c */
-bool isSafe(int n, int board[n][n], int r, int c) 
+bool isSafe(int n, int **board, int r, int c) 
 { 
   int i, j;
 	// return false if two queens share the same column
@@ -67,7 +67,7 @@ bool isSafe(int n, int board[n][n], int r, int c)
 	return true;
 } 
 
-void solvenq(int n, int board[n][n], int best_board[n][n], int r, int *sol_num) 
+void solvenq(int n, int **board, int **best_board, int r, int *sol_num) 
 {
   // base case for when all queens have been inserted
   if (r == n) {
@@ -105,13 +105,19 @@ int main(int argc, char **argv)
     }
   n = atoi(argv[1]);
   int sol_num = 0;
-  int board[n][n];
-  int best_board[n][n];
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
-      board[i][j] = 0;
-    }
+  
+  int **board, **best_board;
+  board = (int **) malloc(n * sizeof(int *));
+  best_board = (int **) malloc(n * sizeof(int *));
+  for(i = 0; i < n; i++) {
+      board[i] = (int *) malloc(n * sizeof(int));
+      best_board[i] = (int *) malloc(n * sizeof(int));
+      for(j = 0; j < n; j++) {
+          board[i][j] = 0;
+          best_board[i][j] = 0;
+      }
   }
+
 	clock_gettime(CLOCK_MONOTONIC, &start);
   solvenq(n, board, best_board, 0, &sol_num);
   clock_gettime(CLOCK_MONOTONIC, &end);
