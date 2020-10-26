@@ -106,18 +106,20 @@ int main(int argc, char **argv)
   n = atoi(argv[1]);
   int sol_num = 0;
   
+  // initialize boards and allocate their memory
   int **board, **best_board;
   board = (int **) malloc(n * sizeof(int *));
   best_board = (int **) malloc(n * sizeof(int *));
-  for(i = 0; i < n; i++) {
+  for (i = 0; i < n; i++) {
       board[i] = (int *) malloc(n * sizeof(int));
       best_board[i] = (int *) malloc(n * sizeof(int));
-      for(j = 0; j < n; j++) {
+      for (j = 0; j < n; j++) {
           board[i][j] = 0;
           best_board[i][j] = 0;
       }
   }
 
+  // calls program to run while tracking execution time
 	clock_gettime(CLOCK_MONOTONIC, &start);
   solvenq(n, board, best_board, 0, &sol_num);
   clock_gettime(CLOCK_MONOTONIC, &end);
@@ -126,9 +128,18 @@ int main(int argc, char **argv)
   BILLION *(end.tv_sec - start.tv_sec) +(end.tv_nsec - start.tv_nsec);
   time = time / BILLION;
     
+  // prints information calculated in problem
   printf("Elapsed: %lf seconds\n\n", time);
   printf("There are %d solutions and the solution with the highest profit is: \n\n", sol_num);
   printSolution(n, best_board);
   printf("Profit: %i\n", best_profit);
+  
+  // frees all allocated memory
+  for (i = 0; i < n; i++) {
+    free(board[i]);
+    free(best_board[i]);
+  }
+  free(board);
+  free(best_board);
 	return 0; 
 } 
