@@ -8,7 +8,9 @@ backtracking using parallel algorithm */
 #include <string.h>
 #define BILLION 1000000000L 
 
-int best_profit, *sol_num, **best_board;
+int best_profit, *sol_num, **best_board; // global variables used by all threads
+pthread_barrier_t barrier;
+struct timespec time2;
 
 /* A utility function to print solution */
 void printSolution(int n, int **board) 
@@ -76,7 +78,7 @@ void solvenq(int n, int **board, int row, int pid)
 {
   // base case for when all queens have been inserted
   if (row == n) {
-    sol_num[pid] = sol_num[pid] + 1;
+    sol_num[pid]++;
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
@@ -106,6 +108,12 @@ psolvenq(void *varg) {
   n = arg->n;
   p = arg->p;
   pid = arg->pid;
+  
+  pthread_barrier_wait(&barrier);
+  
+  // take timestamp 2 (only in thread 0)
+  if (pid == 0) 
+    clock_gettime(CLOCK_MONOTONIC, &time2);
 
   // initialize board to each processor and allocate its memory
   temp_board = (int **) malloc(n * sizeof(int *));
@@ -134,9 +142,9 @@ psolvenq(void *varg) {
 
 int
 main(int argc, char **argv) {
-  struct timespec start, end;
-  int i, j, p, n;  // i, j, :iterative index, p: # of processor, n: matrix dimension
-  double time;     // time indicates execution time
+  struct timespec time1, time3, time4;
+  double setup_time, exec_time, finish_time;
+  int i, j, p, n; // i, j, :iterative index, p: # of processor, n: number of queens & board dimensions
 
   if(argc != 3) {
       printf("Usage: nqueens_parallel n p\nAborting...\n");
@@ -155,14 +163,18 @@ main(int argc, char **argv) {
   }
 
   // initialize solution number and best profit array that store each data in each processor
-  sol_num = (int *) malloc(n * sizeof(int));
+  sol_num = (int *) malloc(p * sizeof(int));
   best_profit = 0;
   for (i = 0; i < p; i++) {
     sol_num[i] = 0;
   }
-
-  clock_gettime(CLOCK_MONOTONIC, &start);
-
+  
+  // initialize pthread barrier to synchronize p threads
+  pthread_barrier_init(&barrier, NULL, p);
+  
+  // take timestamp 1
+  clock_gettime(CLOCK_MONOTONIC, &time1);
+  
   // allocate memory for thread
   pthread_t *threads = malloc(p * sizeof(threads));
   for (i = 0; i < p; i++) {
@@ -179,28 +191,49 @@ main(int argc, char **argv) {
 
   for(i = 0; i < p; i++)
       pthread_join(threads[i], NULL);
-  clock_gettime(CLOCK_MONOTONIC, &end);
-  free(threads);
+    
+  // take timestamp 3
+  clock_gettime(CLOCK_MONOTONIC, &time3);
   
-  time = BILLION *(end.tv_sec - start.tv_sec) +(end.tv_nsec - start.tv_nsec);
-  time = time / BILLION;
+  free(threads);
 
   int sol_total = 0;
   for (i = 0; i < n; i++) {
     sol_total = sol_total + sol_num[i];
   }
   
-  // prints information calculated in problem
-  printf("Elapsed: %lf seconds\n\n", time);
-  printf("There are %d solutions and the solution with the highest profit is: \n\n", sol_total);
-  printSolution(n, best_board);
-  printf("Profit: %i\n", best_profit);
-  
   // frees all allocated memory
   for (i = 0; i < n; i++) {
     free(best_board[i]);
   }
   free(best_board);
+  free(sol_num);
+  
+  // calculate setup and execution times
+  setup_time = BILLION * 
+    (time2.tv_sec - time1.tv_sec) + (time2.tv_nsec - time1.tv_nsec);
+  setup_time = setup_time / BILLION;
+  
+  exec_time = BILLION * 
+    (time3.tv_sec - time2.tv_sec) + (time3.tv_nsec - time2.tv_nsec);
+  exec_time = exec_time / BILLION;
+  
+  // prints information calculated in problem
+  printf("There are %i solutions and the solution with the highest profit is: \n\n", sol_total);
+  printSolution(n, best_board);
+  printf("Profit: %i\n", best_profit);
+  printf("Setup time: %lf seconds\n", setup_time);
+  printf("Execution time: %lf seconds\n", exec_time);
+  
+  // take timestamp 4
+  clock_gettime(CLOCK_MONOTONIC, &time4);
+  
+  // calculate finish time
+  finish_time = BILLION * 
+    (time4.tv_sec - time3.tv_sec) + (time4.tv_nsec - time3.tv_nsec);
+  finish_time = finish_time / BILLION;
+  
+  printf("Finish time: %lf seconds\n\n", finish_time);
 
   return 0;
 }

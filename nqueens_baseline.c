@@ -7,7 +7,7 @@ backtracking */
 #include <string.h>
 #define BILLION 1000000000L 
 
-int best_profit;
+int best_profit, **best_board, sol_num;
 
 /* A utility function to print solution */
 void printSolution(int n, int **board) 
@@ -67,11 +67,11 @@ bool isSafe(int n, int **board, int r, int c)
 	return true;
 } 
 
-void solvenq(int n, int **board, int **best_board, int r, int *sol_num) 
+void solvenq(int n, int **board, int r) 
 {
   // base case for when all queens have been inserted
   if (r == n) {
-    *sol_num = *sol_num + 1;
+    sol_num ++;
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
@@ -87,7 +87,7 @@ void solvenq(int n, int **board, int **best_board, int r, int *sol_num)
 			// place queen on current square
 			board[r][i] = 1;
 			// recur for next row
-			solvenq(n, board, best_board, r+1, sol_num);
+			solvenq(n, board, r+1);
 			// backtrack and remove queen from current square
 			board[r][i] = 0;
 		}
@@ -98,16 +98,16 @@ int main(int argc, char **argv)
 { 
   struct timespec start, end;
   double time;
-  int n, i, j;
+  int n, i, j, **board;
   if(argc != 2) {
         printf("Usage: nqueens_baseline n\nAborting...\n");
         exit(0);
     }
   n = atoi(argv[1]);
-  int sol_num = 0;
+  
+  sol_num = 0;
   
   // initialize boards and allocate their memory
-  int **board, **best_board;
   board = (int **) malloc(n * sizeof(int *));
   best_board = (int **) malloc(n * sizeof(int *));
   for (i = 0; i < n; i++) {
@@ -121,11 +121,11 @@ int main(int argc, char **argv)
 
   // calls program to run while tracking execution time
 	clock_gettime(CLOCK_MONOTONIC, &start);
-  solvenq(n, board, best_board, 0, &sol_num);
+  solvenq(n, board, 0);
   clock_gettime(CLOCK_MONOTONIC, &end);
     
   time =
-  BILLION *(end.tv_sec - start.tv_sec) +(end.tv_nsec - start.tv_nsec);
+  BILLION * (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec);
   time = time / BILLION;
     
   // prints information calculated in problem
