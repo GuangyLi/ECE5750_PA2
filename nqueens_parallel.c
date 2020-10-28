@@ -9,7 +9,6 @@ backtracking using parallel algorithm */
 #define BILLION 1000000000L 
 
 int best_profit, *sol_num, **best_board; // global variables used by all threads
-char copy_fin;
 pthread_barrier_t barrier;
 struct timespec time2;
 
@@ -33,8 +32,6 @@ void copy(int n, int **src, int **dest)
     for (j = 0; j < n; j++)
       dest[i][j] = src[i][j];
   }
-
-  copy_fin = 1;
 }
 
 /* Calculates total profit of a board using formula from PA2 handout */
@@ -171,8 +168,6 @@ main(int argc, char **argv) {
   for (i = 0; i < p; i++) {
     sol_num[i] = 0;
   }
-
-  copy_fin = 0;
   
   // initialize pthread barrier to synchronize p threads
   pthread_barrier_init(&barrier, NULL, p);
