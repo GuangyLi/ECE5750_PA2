@@ -8,8 +8,9 @@ backtracking using parallel algorithm */
 #include <string.h>
 #define BILLION 1000000000L 
 
-int best_profit, *sol_num, *best_board; // global variables used by all threads
+int best_profit, sol_num, *best_board; // global variables used by all threads
 pthread_barrier_t barrier;
+pthread_mutex_t sum_lock, best_lock; // lock to prevent write to sum and best case at the same time
 struct timespec time2;
 
 /* A utility function to print solution */
@@ -63,12 +64,19 @@ void solvenq(int n, int *board, int col, int pid)
 {
   // base case for when all queens have been inserted
   if (col == n) {
-    sol_num[pid]++;
+    // Prevent write to sol_num at the same time
+    pthread_mutex_lock(&sum_lock);
+    sol_num++;
+    pthread_mutex_unlock(&sum_lock);
+
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
+      // Prevent write to best case at the same time, not necessary currently since this does not occur frequently
+      pthread_mutex_lock(&best_lock);
       best_profit = temp;
       copy(n, board, best_board);
+      pthread_mutex_unlock(&best_lock);
     }
     return;
   }
@@ -130,12 +138,8 @@ main(int argc, char **argv) {
       best_board[i] = 0;
   }
 
-  // initialize solution number and best profit array that store each data in each processor
-  sol_num = (int *) malloc(p * sizeof(int));
-  best_profit = 0;
-  for (i = 0; i < p; i++) {
-    sol_num[i] = 0;
-  }
+  // initialize solution number 
+  sol_num = 0;
   
   // initialize pthread barrier to synchronize p threads
   pthread_barrier_init(&barrier, NULL, p);
@@ -164,11 +168,6 @@ main(int argc, char **argv) {
   clock_gettime(CLOCK_MONOTONIC, &time3);
   
   free(threads);
-
-  int sol_total = 0;
-  for (i = 0; i < n; i++) {
-    sol_total = sol_total + sol_num[i];
-  }
   
   // calculate setup and execution times
   setup_time = BILLION * 
@@ -180,7 +179,7 @@ main(int argc, char **argv) {
   exec_time = exec_time / BILLION;
   
   // prints information calculated in problem
-  printf("There are %i solutions and the solution with the highest profit is: \n\n", sol_total);
+  printf("There are %i solutions and the solution with the highest profit is: \n\n", sol_num);
   printSolution(n, best_board);
   printf("Profit: %i\n", best_profit);
   printf("Setup time: %lf seconds\n", setup_time);
@@ -198,7 +197,6 @@ main(int argc, char **argv) {
 
   // frees all allocated memory
   free(best_board);
-  free(sol_num);
 
   return 0;
 }
