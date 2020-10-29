@@ -57,7 +57,7 @@ bool isSafe(int r, int *board, int col)
 } 
 
 typedef struct {
-    int n, p, pid;
+    int n, p, pid, **boards;
 } GM;
 
 void solvenq(int n, int *board, int col, int pid) 
@@ -91,10 +91,11 @@ void solvenq(int n, int *board, int col, int pid)
 void *
 psolvenq(void *varg) {
   GM *arg = varg;
-  int pid, n, p, *temp_board, i, j;
+  int pid, n, p, **all_boards, i, j;
   n = arg->n;
   p = arg->p;
   pid = arg->pid;
+  all_boards = arg->boards;
   
   pthread_barrier_wait(&barrier);
   
@@ -102,28 +103,19 @@ psolvenq(void *varg) {
   if (pid == 0) 
     clock_gettime(CLOCK_MONOTONIC, &time2);
 
-  // initialize board to each processor and allocate its memory
-  temp_board = (int *) malloc(n * sizeof(int));
-  for (i = 0; i < n; i++) {
-      temp_board[i] = 0;
-  }
-
   for (i = pid; i < n; i=i+p) {
     // place queen on current square
-    temp_board[0] = i;
+    all_boards[i] = i;
     // recur for next row
-    solvenq(n, temp_board, 1, pid);
+    solvenq(n, all_boards[i], 1, pid);
 	}
-
-  // frees allocated temp_board
-  free(temp_board);
 }
 
 int
 main(int argc, char **argv) {
   struct timespec time1, time3, time4;
   double setup_time, exec_time, finish_time;
-  int i, j, p, n; // i, j, :iterative index, p: # of processor, n: number of queens & board dimensions
+  int i, j, p, n, **all_boards; // i, j, :iterative index, p: # of processor, n: number of queens & board dimensions
 
   if(argc != 3) {
       printf("Usage: nqueens_parallel n p\nAborting...\n");
@@ -131,6 +123,14 @@ main(int argc, char **argv) {
   }
   n = atoi(argv[1]);
   p = atoi(argv[2]);
+
+  all_boards = (int **) malloc(p * sizeof(int *));
+  for(i = 0; i < p; i++) {
+      all_boards[i] = (int *) malloc(n * sizeof(int));
+      for(j = i; j < n; j++) {
+          all_boards[i][j] = 0;
+      }
+  }
 
   // initialize board to each processor and allocate its memory
   best_board = (int *) malloc(n * sizeof(int));
