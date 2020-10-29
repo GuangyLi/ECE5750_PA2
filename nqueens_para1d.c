@@ -105,9 +105,9 @@ psolvenq(void *varg) {
 
   for (i = pid; i < n; i=i+p) {
     // place queen on current square
-    all_boards[i] = i;
+    all_boards[pid][0] = i;
     // recur for next row
-    solvenq(n, all_boards[i], 1, pid);
+    solvenq(n, all_boards[pid], 1, pid);
 	}
 }
 
@@ -127,7 +127,7 @@ main(int argc, char **argv) {
   all_boards = (int **) malloc(p * sizeof(int *));
   for(i = 0; i < p; i++) {
       all_boards[i] = (int *) malloc(n * sizeof(int));
-      for(j = i; j < n; j++) {
+      for(j = 0; j < n; j++) {
           all_boards[i][j] = 0;
       }
   }
@@ -156,6 +156,7 @@ main(int argc, char **argv) {
       arg->n = n;
       arg->p = p;
       arg->pid = i;
+      arg->boards = all_boards;
 
       // assign workload to thread, each thread seems to have acces to the full data
       pthread_create(&threads[i], NULL, psolvenq, arg);
@@ -197,6 +198,10 @@ main(int argc, char **argv) {
 
   // frees all allocated memory
   free(best_board);
+  for (i = 0; i < p; i++) {
+    free(all_boards[i]);
+  }
+  free(all_boards);
 
   return 0;
 }
