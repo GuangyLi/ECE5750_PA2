@@ -9,11 +9,18 @@ backtracking using parallel algorithm */
 #define BILLION 1000000000L 
 
 int best_profit, sol_num, *best_board; // global variables used by all threads
+struct timespec time2;
 pthread_barrier_t barrier;
 pthread_mutex_t sum_lock, best_lock; // lock to prevent write to sum and best case at the same time
-struct timespec time2;
 
-/* A utility function to print solution */
+// Data structure that passed into each processor
+typedef struct {
+    int n, p, pid, **boards;
+} GM;
+
+/////////////////////////////////////Utility Functions/////////////////////////////////////
+
+/* A utility function to print solution in 2D visual representation */
 void printSolution(int n, int *board) 
 { 
   int i,j;
@@ -27,7 +34,7 @@ void printSolution(int n, int *board)
   printf("\n");
 } 
 
-/* Copies src n x n matrix into dest n x n matrix */
+/* Copies src array into dest array */
 void copy(int n, int *src, int *dest)
 {
   int i;
@@ -39,36 +46,39 @@ int totalProfit(int n, int *board)
 {
   int i, prof;
   prof = 0;
-  for (i = 0; i < n; i++) prof += abs(i - board[i]);
+  
+  //i represents column number whereas board[i] represent row number
+  for (i = 0; i < n; i++) prof += abs(i - board[i]); 
   
   return prof;
 }
     
 /* Returns true if the board satisfies the n queens problem if a queen 
-   were to be inserted at row r and column c */
+   were to be inserted at row r and column col */
 bool isSafe(int r, int *board, int col) 
 { 
   int i;
-	// return false if two queens share the same column
-	for (i = 0; i < col; i++){
-		if ((board[i]==r) || (col-i==abs(board[i]-r))) return false;
+  // return false if two queens share the same column
+  for (i = 0; i < col; i++){
+    if ((board[i]==r) || (col-i==abs(board[i]-r))) return false;
   }
-	return true;
+  return true;
 } 
 
-typedef struct {
-    int n, p, pid, **boards;
-} GM;
+/////////////////////////////////////Recursive and parallel Functions/////////////////////////////////////
 
+// The recursive function that solve the nqueen problem using backtracking
 void solvenq(int n, int *board, int col, int pid) 
 {
   // base case for when all queens have been inserted
   if (col == n) {
+	  
     // Prevent write to sol_num at the same time
     pthread_mutex_lock(&sum_lock);
     sol_num++;
     pthread_mutex_unlock(&sum_lock);
-
+	
+    // Copy the current board to the memory allocated to best_board if the current profit is larger than the store best case
     int temp;
     temp = totalProfit(n, board);
     if (temp > best_profit) {
@@ -80,14 +90,17 @@ void solvenq(int n, int *board, int col, int pid)
     }
     return;
   }
+  
+  // Iterate from row 0 to n to place all acceptable queens on the current column
   int i;
   for (i = 0; i < n; i++) {
     board[col] = i;
-		// if no two queens threaten each other
-		if (isSafe(i, board, col)) solvenq(n, board, col+1, pid);
-	}
+    // if no two queens threaten each other
+    if (isSafe(i, board, col)) solvenq(n, board, col+1, pid);
+  }
 }
 
+// The parallel function that assign tasks to each processor
 void *
 psolvenq(void *varg) {
   GM *arg = varg;
@@ -100,17 +113,19 @@ psolvenq(void *varg) {
   pthread_barrier_wait(&barrier);
   
   // take timestamp 2 (only in thread 0)
-  if (pid == 0) 
-    clock_gettime(CLOCK_MONOTONIC, &time2);
+  if (pid == 0) clock_gettime(CLOCK_MONOTONIC, &time2);
 
   for (i = pid; i < n; i=i+p) {
     // place queen on current square
     all_boards[pid][0] = i;
     // recur for next row
     solvenq(n, all_boards[pid], 1, pid);
-	}
+  }
 }
 
+
+/////////////////////////////////////Main Code/////////////////////////////////////
+// Calculates execution time and perform nqueen calculation
 int
 main(int argc, char **argv) {
   struct timespec time1, time3, time4;
@@ -124,12 +139,13 @@ main(int argc, char **argv) {
   n = atoi(argv[1]);
   p = atoi(argv[2]);
 
+  // Allocate memory to the 2D array that stores aboard and shared by all processors
   all_boards = (int **) malloc(p * sizeof(int *));
   for(i = 0; i < p; i++) {
-      all_boards[i] = (int *) malloc(n * sizeof(int));
-      for(j = 0; j < n; j++) {
-          all_boards[i][j] = 0;
-      }
+    all_boards[i] = (int *) malloc(n * sizeof(int));
+    for(j = 0; j < n; j++) {
+        all_boards[i][j] = 0;
+    }
   }
 
   // initialize board to each processor and allocate its memory
@@ -151,24 +167,21 @@ main(int argc, char **argv) {
   pthread_t *threads = malloc(p * sizeof(threads));
   for (i = 0; i < p; i++) {
 
-      // struct to pass in input (ptr to all matrix and vectors)
-      GM *arg = malloc(sizeof(*arg));
-      arg->n = n;
-      arg->p = p;
-      arg->pid = i;
-      arg->boards = all_boards;
+    // struct to pass in input (ptr to all matrix and vectors)
+    GM *arg = malloc(sizeof(*arg));
+    arg->n = n;
+    arg->p = p;
+    arg->pid = i;
+    arg->boards = all_boards;
 
-      // assign workload to thread, each thread seems to have acces to the full data
-      pthread_create(&threads[i], NULL, psolvenq, arg);
+    // assign workload to thread, each thread seems to have acces to the full data
+    pthread_create(&threads[i], NULL, psolvenq, arg);
   }
 
-  for(i = 0; i < p; i++)
-      pthread_join(threads[i], NULL);
+  for(i = 0; i < p; i++) pthread_join(threads[i], NULL);
     
   // take timestamp 3
   clock_gettime(CLOCK_MONOTONIC, &time3);
-  
-  free(threads);
   
   // calculate setup and execution times
   setup_time = BILLION * 
@@ -197,11 +210,12 @@ main(int argc, char **argv) {
   printf("Finish time: %lf seconds\n\n", finish_time);
 
   // frees all allocated memory
-  free(best_board);
   for (i = 0; i < p; i++) {
     free(all_boards[i]);
   }
   free(all_boards);
+  free(best_board);
+  free(threads);
 
   return 0;
 }
